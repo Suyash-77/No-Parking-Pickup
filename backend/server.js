@@ -19,11 +19,10 @@ const port = process.env.PORT || 4000
 
 
 const allowedOrigins = [process.env.APP_URL,'http://localhost:5173']
+app.use(cors({ origin: allowedOrigins, credentials: true }))
 app.use(morgan('dev'))
-app.use(express.json());
-app.use(cookieParser());
-app.use(cors({origin: allowedOrigins, credentials: true}));
-
+app.use(express.json())
+app.use(cookieParser())
 
 app.get('/', (req, res)=> res.send("API WORKING"));
 app.use('/api/auth', authRouter)
@@ -36,4 +35,4 @@ app.use('/api/violation', violationrouter)
 app.use('/api/pay', payrouter)
 
 
-app.listen(port, '0.0.0.0', ()=> console.log(`Server started on PORT: ${port}`));
+app.listen(port, ()=> console.log(`Server started on PORT: ${port}`));

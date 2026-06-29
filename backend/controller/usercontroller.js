@@ -47,3 +47,28 @@ export const getMyVehicles = async (req, res) => {
     return sendError(res, 500, error.message)
   }
 }
+
+export const saveFaceDescriptor = async (req, res) => {
+    try {
+        const { userId, descriptor } = req.body
+
+        if (!descriptor || !Array.isArray(descriptor) || descriptor.length === 0) {
+            return sendError(res, 400, 'Valid descriptor array is required')
+        }
+
+        await userModal.saveFaceDescriptor(userId, descriptor)
+        return sendSuccess(res, 200, 'Face registered successfully')
+    } catch (error) {
+        return sendError(res, 500, error.message)
+    }
+}
+
+export const getFaceStatus = async (req, res) => {
+    try {
+        const { userId } = req.body
+        const descriptor = await userModal.getFaceDescriptorById(userId)
+        return sendSuccess(res, 200, null, { registered: !!descriptor })
+    } catch (error) {
+        return sendError(res, 500, error.message)
+    }
+}

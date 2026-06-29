@@ -5,6 +5,7 @@ import transporter from '../config/nodemailer.js';
 import { USER_ROLE, USER_STATUS } from '../config/constants.js';
 import { STATUS_CODES } from '../config/statusCode.js'
 import { sendError, sendSuccess } from '../config/response.js';
+import pool from '../config/mysql.js';
 
 export const register = async (req, res) => {
     const { fullname, email, password, phone } = req.body;
@@ -47,7 +48,7 @@ export const register = async (req, res) => {
 
         await transporter.sendMail(mailOptions);
 
-        return sendSuccess(res, 200,"", 'Successful Registration please wait for admin approval');
+        return sendSuccess(res, 200, "", 'Successful Registration please wait for admin approval');
 
     } catch (error) {
         return sendError(res, 500, error.message)
@@ -65,18 +66,18 @@ export const login = async (req, res) => {
         const user = await userModal.findByEmail(email)
 
         if (!user) {
-            return sendError( res, 401, 'Invalid Email' )
+            return sendError(res, 401, 'Invalid Email')
         }
 
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (!isMatch) {
-            return sendError(res, 401, 'Invalid Password' )
+            return sendError(res, 401, 'Invalid Password')
         }
 
         if (user.role === USER_ROLE.USER) {
             if (user.status === USER_STATUS.PENDING) {
-                return sendError(res, 403, 'Account Status pending need approval from admin' )
+                return sendError(res, 403, 'Account Status pending need approval from admin')
             }
 
             if (user.status === USER_STATUS.REJECTED) {
@@ -93,7 +94,7 @@ export const login = async (req, res) => {
             maxAge: 7 * 24 * 60 * 60 * 1000
         });
 
-        return sendSuccess(res, 200,"",{role: user.role, name: user.name });
+        return sendSuccess(res, 200, "", { role: user.role, name: user.name });
 
 
     } catch (error) {
@@ -111,11 +112,11 @@ export const logout = async (req, res) => {
             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict'
         });
 
-        return sendSuccess(res, 200,"", 'logged out' );
+        return sendSuccess(res, 200, "", 'logged out');
 
     }
     catch (error) {
-        return sendError(res, 500,  error.message);
+        return sendError(res, 500, error.message);
     }
 }
 
@@ -127,7 +128,7 @@ export const sendVerifyOtp = async (req, res) => {
         const user = await userModal.findById(userId);
 
         if (user.is_verified) {
-            return sendError(res, 400, "Account is already Verified" )
+            return sendError(res, 400, "Account is already Verified")
         }
 
         const optcode = String(Math.floor(Math.random() * 900000 + 100000));
@@ -152,10 +153,10 @@ export const sendVerifyOtp = async (req, res) => {
         };
 
         await transporter.sendMail(mailOptions);
-        return sendSuccess(res, 200,"", "verification OTP sent to email")
+        return sendSuccess(res, 200, "", "verification OTP sent to email")
 
     } catch (error) {
-        return sendError(res, 500, error.message );
+        return sendError(res, 500, error.message);
     }
 }
 
@@ -165,40 +166,40 @@ export const verifyEmail = async (req, res) => {
         const { userId, optCode } = req.body;
 
         if (!userId || !optCode) {
-            return sendError(res, 400, "Missing Details" );
+            return sendError(res, 400, "Missing Details");
         }
 
         const user = await userModal.findById(userId);
 
         if (!user) {
-            return sendError(res, 404, "User not Found" );
+            return sendError(res, 404, "User not Found");
         }
 
         const otpRecord = await userModal.findLatestOtp(userId);
 
         if (!otpRecord || otpRecord.otp_code !== optCode) {
-            return sendError(res, 400, "Invalid OTP" );
+            return sendError(res, 400, "Invalid OTP");
         }
 
         if (new Date(Date.now()) > otpRecord.expires_at) {
-            return sendError(res, 400, "OTP Expired" );
+            return sendError(res, 400, "OTP Expired");
         }
 
         await userModal.markVerified(userId);
         await userModal.markOtpAsUsed(otpRecord.id);
 
-        return sendSuccess(res, 200,"", "Email verified successfully" );
+        return sendSuccess(res, 200, "", "Email verified successfully");
     } catch (error) {
-        return sendError(res, 500, error.message );
+        return sendError(res, 500, error.message);
     }
 }
 
 export const isAuthenticated = async (req, res) => {
     try {
-        return sendSuccess(res, 200,"",{ success: true });
+        return sendSuccess(res, 200, "", { success: true });
     }
     catch (error) {
-        sendError(res, 500, error.message );
+        sendError(res, 500, error.message);
     }
 }
 
@@ -206,13 +207,13 @@ export const SendResetOtp = async (req, res) => {
     const { email } = req.body;
 
     if (!email) {
-        return sendError(res, 400, 'Email is required' )
+        return sendError(res, 400, 'Email is required')
     }
 
     try {
         const user = await userModal.findByEmail(email);
         if (!user) {
-            return sendError(res, 404, 'User not Found' );
+            return sendError(res, 404, 'User not Found');
         }
 
         const optcode = String(Math.floor(Math.random() * 900000 + 100000));
@@ -238,10 +239,10 @@ export const SendResetOtp = async (req, res) => {
 
         await transporter.sendMail(mailOptions);
 
-        return sendSuccess(res, 200,"", 'Reset OTP sent successfully' );
+        return sendSuccess(res, 200, "", 'Reset OTP sent successfully');
 
     } catch (error) {
-        return sendError(res, 500, error.message );
+        return sendError(res, 500, error.message);
     }
 }
 
@@ -268,7 +269,7 @@ export const verifyResetOtp = async (req, res) => {
             return sendError(res, 400, 'OTP Expired');
         }
 
-        return sendSuccess(res, 200,"", 'OTP verified');
+        return sendSuccess(res, 200, "", 'OTP verified');
     } catch (error) {
         return sendError(res, 500, error.message);
     }
@@ -278,32 +279,121 @@ export const resetPassword = async (req, res) => {
     const { email, otp, newPassword } = req.body;
 
     if (!email || !otp || !newPassword) {
-        return sendError(res, 400, 'Email, OTP, and new Password are required' );
+        return sendError(res, 400, 'Email, OTP, and new Password are required');
     }
 
     try {
 
         const user = await userModal.findByEmail(email);
         if (!user) {
-            return sendError(res, 404, 'User not Found' );
+            return sendError(res, 404, 'User not Found');
         }
 
         const otpRecord = await userModal.findLatestOtp(user.id);
 
         if (!otpRecord || otpRecord.otp_code !== otp) {
-            return sendError(res, 400, "Invalid OTP" );
+            return sendError(res, 400, "Invalid OTP");
         }
 
         if (new Date(Date.now()) > otpRecord.expires_at) {
-            return sendError(res, 400, "OTP Expired" );
+            return sendError(res, 400, "OTP Expired");
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
         await userModal.updatePassword(user.id, hashedPassword);
         await userModal.markOtpAsUsed(otpRecord.id);
 
-        return sendSuccess(res, 200,"", 'Password has been reset' );
+        return sendSuccess(res, 200, "", 'Password has been reset');
     } catch (error) {
-        return sendError(res, 500, error.message );
+        return sendError(res, 500, error.message);
     }
+}
+
+export const faceLogin = async (req, res) => {
+    try {
+        const { descriptor } = req.body
+
+        if (!descriptor || !Array.isArray(descriptor) || descriptor.length === 0) {
+            return sendError(res, 400, 'Valid face descriptor is required')
+        }
+
+        const incoming = new Float32Array(descriptor)
+
+        const [rows] = await pool.query(
+            `SELECT id, name, email, role, face_descriptor 
+             FROM users 
+             WHERE face_descriptor IS NOT NULL 
+             AND (role = ? OR role = ?)`,
+            [USER_ROLE.DASHBOARD_ADMIN, USER_ROLE.FIELD_ADMIN]
+        )
+
+        for (const user of rows) {
+            let stored
+
+            try {
+                const parsed =
+                    typeof user.face_descriptor === 'string'
+                        ? JSON.parse(user.face_descriptor)
+                        : user.face_descriptor
+
+                if (!Array.isArray(parsed) || parsed.length === 0) {
+                    console.log(`Skipping invalid descriptor for user ${user.id}`)
+                    continue
+                }
+
+                stored = new Float32Array(parsed)
+            } catch (err) {
+                console.log(`Skipping malformed face_descriptor for user ${user.id}:`, user.face_descriptor)
+                continue
+            }
+
+            if (stored.length !== incoming.length) continue
+
+            const distance = euclideanDistance(stored, incoming)
+
+            console.log('distance = ', distance)
+
+            if (distance < 0.6) {
+
+                console.log('FACE LOGIN USER:', user)
+        console.log('FACE LOGIN ROLE:', user.role)
+        
+                const token = jwt.sign(
+                    { id: user.id, role: user.role },
+                    process.env.JWT_SECRET,
+                    { expiresIn: '7d' }
+                )
+
+                res.cookie('token', token, {
+                    httpOnly: true,
+                    secure: process.env.NODE_ENV === 'production',
+                    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+                    maxAge: 7 * 24 * 60 * 60 * 1000
+                })
+
+                return sendSuccess(res, 200, 'Face login successful', {
+                    userdata: {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role
+                    }
+                })
+            }
+        }
+
+        return sendError(res, 401, 'Face not recognized')
+    } catch (error) {
+        console.log('faceLogin error:', error)
+        return sendError(res, 500, error.message)
+    }
+}
+
+const euclideanDistance = (d1, d2) => {
+    if (d1.length !== d2.length) return Infinity
+    let sum = 0
+    for (let i = 0; i < d1.length; i++) {
+        sum += (d1[i] - d2[i]) ** 2
+    }
+    return Math.sqrt(sum)
 }

@@ -339,6 +339,36 @@ const userModal = {
   return rows;
 },
 
+async saveFaceDescriptor(userId, descriptor) {
+    if (!Array.isArray(descriptor)) {
+        throw new Error('Descriptor must be an array')
+    }
+
+    await pool.query(
+        `UPDATE users SET face_descriptor = ? WHERE id = ?`,
+        [JSON.stringify(descriptor), userId]
+    )
+},
+
+async getFaceDescriptorById(userId) {
+    const [rows] = await pool.query(
+        `SELECT face_descriptor FROM users WHERE id = ?`,
+        [userId]
+    )
+
+    const raw = rows[0]?.face_descriptor
+    if (!raw) return null
+
+    try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+        if (!Array.isArray(parsed)) return null
+        return new Float32Array(parsed)
+    } catch (error) {
+        console.error('Invalid face_descriptor JSON for user:', userId, raw)
+        return null
+    }
+}
+
 };
 
 export default userModal;

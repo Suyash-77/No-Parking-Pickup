@@ -4,7 +4,7 @@ import { USER_ROLE } from '../config/constants.js'
 import { sendError, sendSuccess } from '../config/response.js'
 
 const fildadminauth = async (req, res, next)=>{
-    const token = req.cookies.token || req.headers.authorization?.split(' ')[1]
+    const token = req.cookies?.token || req.headers.authorization?.split(' ')[1]
 
     if(!token){
         return sendError(res, 401, 'Not Authorized, login again')

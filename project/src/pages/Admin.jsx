@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppContent } from '../context/AppContext'
 import axios from 'axios'
@@ -9,13 +9,13 @@ const Admin = () => {
   const { backendUrl, userData } = useContext(AppContent)
   const navigate = useNavigate()
 
-  const api = axios.create({
-    baseURL: backendUrl,
-    withCredentials: true
-  })
+  const apiRef = useRef(null)
+  if (!apiRef.current) {
+    apiRef.current = axios.create({ baseURL: backendUrl, withCredentials: true })
+  }
+  const api = apiRef.current
 
   const [activeTab, setActiveTab] = useState('violations')
-
   const [stats, setStats] = useState(null)
 
   const [violations, setViolations] = useState([])
@@ -64,21 +64,6 @@ const Admin = () => {
     }
   }
 
-  const handleStatusChange = async (id, status) => {
-    try {
-      const { data } = await api.put(`/api/dashboard-admin/violation-status/${id}`, { status })
-      if (data.success) {
-        showMessage('success', `Status updated to ${VIOLATION_STATUS_LABEL[status]}`)
-        fetchViolations()
-        fetchStats()
-      } else {
-        showMessage('error', data.message)
-      }
-    } catch (err) {
-      showMessage('error', err.message)
-    }
-  }
-
   const fetchUsers = async () => {
     setULoading(true)
     try {
@@ -97,9 +82,20 @@ const Admin = () => {
     }
   }
 
-  useEffect(() => { fetchStats() }, [])
-  useEffect(() => { fetchViolations() }, [vSearch, vSort, vOrder, vPage])
-  useEffect(() => { fetchUsers() }, [uSearch, uSort, uOrder, uPage])
+  const handleStatusChange = async (id, status) => {
+    try {
+      const { data } = await api.put(`/api/dashboard-admin/violation-status/${id}`, { status })
+      if (data.success) {
+        showMessage('success', `Status updated to ${VIOLATION_STATUS_LABEL[status]}`)
+        fetchViolations()
+        fetchStats()
+      } else {
+        showMessage('error', data.message)
+      }
+    } catch (err) {
+      showMessage('error', err.message)
+    }
+  }
 
   const handleRelease = async (id) => {
     try {
@@ -153,12 +149,30 @@ const Admin = () => {
     }
   }
 
+  useEffect(() => {
+    if (!userData) return
+    const timer = setTimeout(() => {
+      fetchStats()
+      fetchViolations()
+      fetchUsers()
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [userData])
+
+  useEffect(() => {
+    if (userData) fetchViolations()
+  }, [vSearch, vSort, vOrder, vPage])
+
+  useEffect(() => {
+    if (userData) fetchUsers()
+  }, [uSearch, uSort, uOrder, uPage])
+
   return (
     <div>
       <div className="nav">
         <div className="logo">No Parking Pickup</div>
         <div className="nav-right">
-          <span className="nav-admin-name"> {userData?.name}</span>
+          <span className="nav-admin-name">{userData?.name}</span>
           <button className="btn-logout" onClick={() => navigate('/')}>Home</button>
           <button className="btn-logout" onClick={handleLogout}>Logout</button>
         </div>
@@ -168,10 +182,8 @@ const Admin = () => {
         <div style={{ width: '100%', maxWidth: '1200px' }}>
 
           {message.text && (
-            <div
-              className={message.type === 'success' ? 'alert-success' : 'alert-error'}
-              style={{ marginBottom: '16px' }}
-            >
+            <div className={message.type === 'success' ? 'alert-success' : 'alert-error'}
+              style={{ marginBottom: '16px' }}>
               {message.text}
             </div>
           )}
@@ -179,16 +191,14 @@ const Admin = () => {
           {stats && (
             <div className="stats-grid" style={{ marginBottom: '24px' }}>
               {[
-                { label: 'Total', value: stats.total, color: 'var(--text-primary)' },
+                { label: 'Total',    value: stats.total,    color: 'var(--text-primary)' },
                 { label: 'Captured', value: stats.captured, color: '#fbbf24' },
                 { label: 'Notified', value: stats.notified, color: '#93c5fd' },
-                { label: 'Paid', value: stats.paid, color: 'var(--accent)' },
+                { label: 'Paid',     value: stats.paid,     color: 'var(--accent)' },
                 { label: 'Released', value: stats.released, color: '#c4b5fd' },
               ].map(s => (
                 <div className="stat-card" key={s.label}>
-                  <div className="stat-number" style={{ color: s.color }}>
-                    {s.value || 0}
-                  </div>
+                  <div className="stat-number" style={{ color: s.color }}>{s.value || 0}</div>
                   <div className="stat-label">{s.label}</div>
                 </div>
               ))}
@@ -264,8 +274,7 @@ const Admin = () => {
                             <td>{v.location}</td>
                             <td className="fine-cell">₹{v.fine_amount}</td>
                             <td>
-                              <span
-                                className={`status-badge ${getViolationStatusClass(v.status)}`}>
+                              <span className={`status-badge ${getViolationStatusClass(v.status)}`}>
                                 {VIOLATION_STATUS_LABEL[v.status]}
                               </span>
                             </td>
@@ -291,7 +300,6 @@ const Admin = () => {
                                 </select>
                               </div>
                             </td>
-
                           </tr>
                         ))}
                       </tbody>

@@ -11,11 +11,11 @@ export const AppContextProvider = (props) => {
 
    const getUserData = async () => {
       try {
-         axios.defaults.withCredentials = true
-         const { data } = await axios.get(backendUrl + '/api/user/data')
+         const { data } = await axios.get(backendUrl + '/api/user/data', {
+            withCredentials: true
+         })
          if (data.success) {
             setUserData(data.userdata)
-            console.log(data.userData)
          } else {
             setUserData(null)
          }
@@ -30,18 +30,21 @@ export const AppContextProvider = (props) => {
 
       const initializeAuth = async () => {
          try {
-            axios.defaults.withCredentials = true
-            const { data } = await axios.get(`${backendUrl}/api/auth/is-auth`)
+            const { data } = await axios.get(`${backendUrl}/api/auth/is-auth`, {
+               withCredentials: true
+            })
             if (data.success && active) {
-               setIsLoggedin(true);
-               const { data: userDataResult } = await axios.get(`${backendUrl}/api/user/data`)
+               setIsLoggedin(true)
+               const { data: userDataResult } = await axios.get(`${backendUrl}/api/user/data`, {
+                  withCredentials: true
+               })
                if (userDataResult.success && active) {
-                  setUserData(userDataResult.userdata);
+                  setUserData(userDataResult.userdata)
                }
             }
          } catch (err) {
             if (active && err.response?.status !== 401) {
-               console.log(err.response?.data?.message || err.message);
+               console.log(err.response?.data?.message || err.message)
             }
          }
       };
